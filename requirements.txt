@@ -1,0 +1,10 @@
+Flask
+pydantic
+click
+flake8
+sqlalchemy
+psycopg2-binary
+bcrypt
+PyJWT
+openai==0.28.1
+gunicorn
