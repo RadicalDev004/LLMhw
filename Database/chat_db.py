@@ -26,7 +26,7 @@ class Chats(Base):
         Base.metadata.create_all(bind=engine)
 
     def __repr__(self):
-        return f"<RequestsLog(id={self.id}, endpoint={self.endpoint}, parameters={self.parameters}, result={self.result}, timestamp={self.timestamp})>"
+        return f"<RequestsLog(id={self.id}, username={self.username}, chat_name={self.chat_name}, content={self.content}, timestamp={self.timestamp})>"
 
     @staticmethod
     def get_chats_by_username(username):

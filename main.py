@@ -3,6 +3,7 @@ import os
 from flask import Flask, request, redirect, make_response
 from Database.chat_db import Chats
 from Database.user_db import User
+from app.rag import initialize_vectorstore, retriever
 
 app = create_app()
 
@@ -32,3 +33,6 @@ def handle_request(path):
 if __name__ == '__main__':
     Base.metadata.create_all(engine)
     app.run(host="0.0.0.0", port = int(os.environ.get("PORT", 5000)), debug = True)
+    print("Starting the application...")
+    retriever = initialize_vectorstore()
+    

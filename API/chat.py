@@ -8,11 +8,15 @@ from records.getchatinfo import GetChatInfo
 from pydantic import ValidationError
 import json
 from datetime import datetime, timezone
+import traceback
 import os
-import openai
+from openai import OpenAI
+from app.rag import create_vectorstore, retriever, initialize_vectorstore
 
 chat = Blueprint('add_chat', __name__)
 #openai.api_key = os.getenv("OPENAI_API_KEY", "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") 
+
+retriever = initialize_vectorstore()
 
 @chat.route('/api/add_chat', methods=['POST'])
 def add_chat():
@@ -129,9 +133,10 @@ def add_message():
     session = SessionLocal()
 
     try:
+        print(data)
         chat = Chats.get_chat_by_id(session, data.id)
         #print(data.id)
-
+        print(chat)
         if not chat:
             return jsonify({"error": "Chat not found"}), 404
 
@@ -140,27 +145,39 @@ def add_message():
         except json.JSONDecodeError:
             messages = []
 
+        prompt = create_vectorstore(data.content, retriever)
+        print(prompt)
+        request_messages = []
+        request_messages.append({
+            "role": "user",
+            "content": prompt
+        })
         messages.append({
             "role": "user",
             "content": data.content
         })
 
+        print(request_messages)
+
         chat.content = json.dumps(messages, ensure_ascii=False)
         session.commit()
+        client = OpenAI(api_key="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")
 
-        # response = openai.ChatCompletion.create(
-        #     model="gpt-3.5-turbo",
-        #     messages=messages,
-        #     max_tokens=1000,
-        #     temperature=0.7
-        # )
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=request_messages,
+            max_tokens=1000,
+            temperature=0.7
+        )
 
-        assistant_message = "Simulated response"; #response.choices[0].message['content']
+        assistant_message = response.choices[0].message.content
 
         messages.append({
             "role": "assistant",
             "content": assistant_message
         })
+
+        print(messages)
 
         chat.content = json.dumps(messages, ensure_ascii=False)
         session.commit()
@@ -169,6 +186,8 @@ def add_message():
 
     except Exception as e:
         session.rollback()
+        print(f"Error adding message: {e}")
+        traceback.print_exc() 
         return jsonify({"error": str(e)}), 500
 
     finally:

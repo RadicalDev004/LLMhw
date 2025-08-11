@@ -401,6 +401,7 @@ header {
     function sendMessage() {
       const input = document.getElementById("userInput");
       const text = input.value.trim();
+      input.value = "";
       if (text === "") return;
 
       const chat = document.getElementById("chat");
@@ -409,6 +410,11 @@ header {
       userMessage.className = "message user";
       userMessage.textContent = text;
       chat.appendChild(userMessage);
+
+      const assistantMessage = document.createElement("div");
+      assistantMessage.className = "message assistant";
+      assistantMessage.textContent = "Thinking...";
+      chat.appendChild(assistantMessage);
 
       fetch('/api/add_message', {
         method: 'POST',
@@ -428,17 +434,16 @@ header {
       }).then(data => {
         console.log('Message sent successfully:', data);
 
-        const assistantMessage = document.createElement("div");
-        assistantMessage.className = "message assistant";
         assistantMessage.textContent = data.response || "No response from server.";
         chat.appendChild(assistantMessage);
 
-        input.value = "";
+        
         chat.scrollTop = chat.scrollHeight;
 
       }).catch(error => {
         console.error('There was a problem with the fetch operation:', error);
         userMessage.remove();
+        assistantMessage.textContent = "Error";
       });
 
       
