@@ -43,6 +43,23 @@ body {
   transition: background-color 0.2s ease;
 }
 
+.delete-btn {
+  background-color: transparent;
+  border: none;
+  color: #ff6b6b;
+  font-weight: bold;
+  font-size: 0.9rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.delete-btn:hover {
+  background-color: #ff6b6b;
+  color: white;
+}
+
 .chat-add {
   background-color: #151516 !important;
 }
@@ -117,7 +134,7 @@ header {
 
 .user {
   align-self: flex-end;
-  background: linear-gradient(135deg, #565869, #474956);
+  background: #0e8a6c;
   color: white;
 }
 
@@ -375,6 +392,7 @@ header {
   </div>
 
   <script>
+    var currentChatId = -1;
     getChatsHistory();
     function logout() {
       document.cookie = "username=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
@@ -392,20 +410,46 @@ header {
       userMessage.textContent = text;
       chat.appendChild(userMessage);
 
-      const assistantMessage = document.createElement("div");
-      assistantMessage.className = "message assistant";
-      let response = "This is a static response.";
+      fetch('/api/add_message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: currentChatId,
+          content: text
+        })
+      }).then(response => {
+        if (!response.ok) {         
+          userMessage.remove();
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      }).then(data => {
+        console.log('Message sent successfully:', data);
+
+        const assistantMessage = document.createElement("div");
+        assistantMessage.className = "message assistant";
+        assistantMessage.textContent = data.response || "No response from server.";
+        chat.appendChild(assistantMessage);
+
+        input.value = "";
+        chat.scrollTop = chat.scrollHeight;
+
+      }).catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
+        userMessage.remove();
+      });
+
+      
+      /*let response = "This is a static response.";
       if (document.getElementById("toggleAudio").checked) {
         response += " 🔊 [Audio enabled]";
       }
       if (document.getElementById("togglePicture").checked) {
         response += " 🖼️ [Picture enabled]";
-      }
-      assistantMessage.textContent = response;
-      chat.appendChild(assistantMessage);
-
-      input.value = "";
-      chat.scrollTop = chat.scrollHeight;
+      };*/
+      
     }
 
     function toggleDropdown() {
@@ -422,16 +466,40 @@ header {
       }
     });
 
-    function addNewChat(name = "Chat!", id = 0, isNew = true) {
+    function addNewChat(name = "Chat!", id = 0, isNew = true) {    
       const chatList = document.querySelector(".chat-list");
-      const newChatItem = document.createElement("div");
-      newChatItem.className = "chat-item";
-      newChatItem.textContent = name;
-      newChatItem.onclick = function() {
-        selectChat(newChatItem, id);
-      };
-      chatList.appendChild(newChatItem);
+      const newChatItem = null;
+      if(!isNew)
+      {
+        const newChatItem = document.createElement("div");
+        newChatItem.className = "chat-item";
+        newChatItem.textContent = name;
+
+        newChatItem.onclick = function() {
+          selectChat(newChatItem, id);
+        };
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.classList.add("delete-btn");
+        deleteButton.onclick = function(event) {
+          event.stopPropagation();
+          deleteChat(newChatItem, id);
+        };
+        newChatItem.appendChild(deleteButton);
+
+        chatList.appendChild(newChatItem);
+      }
+      
+      
       if(!isNew) return;
+
+      const chatname = prompt("Enter a chat name:");
+      if (!chatname) {
+        alert("Chat name is required.");
+        return;
+      }
+      name = chatname;
 
       fetch('/api/add_chat', {
         method: 'POST',
@@ -440,7 +508,7 @@ header {
         },
         body: JSON.stringify({
           username: '{{username}}',
-          chatname: newChatItem.textContent
+          chatname: name
         })
       }).then(response => {
         if (!response.ok) {
@@ -449,14 +517,65 @@ header {
         return response.json();
       }).then(data => {
         console.log('Chat added successfully:', data);
+
+        const newChatItem = document.createElement("div");
+        newChatItem.className = "chat-item";
+        newChatItem.textContent = name;
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete";
+        deleteButton.classList.add("delete-btn");
+        deleteButton.onclick = function(event) {
+          event.stopPropagation();
+          deleteChat(newChatItem, data.id);
+        };
+        newChatItem.appendChild(deleteButton);
+
+        newChatItem.onclick = function() {
+          selectChat(newChatItem, data.id);
+        };
+        chatList.insertBefore(newChatItem, chatList.children[1]);
+        selectChat(newChatItem, data.id);
       }).catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
         chatList.removeChild(newChatItem);
       });
 
       
     }
 
+    function deleteChat(chat, id) {
+      if (!confirm("Are you sure you want to delete this chat?")) return;
+
+      fetch('/api/delete_chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: id
+        })
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      }).then(data => {
+        console.log('Chat deleted successfully:', data);
+        chat.remove();
+        const chatContainer = document.getElementById("chat");
+        chatContainer.innerHTML = ""; 
+
+        location.reload();
+
+      }).catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
+      });
+    }
+
     function selectChat(chat, id){
+      currentChatId = id;
+      console.log("Selected chat ID:", currentChatId);
       const chatItems = document.querySelectorAll(".chat-item");
       chatItems.forEach(item => {
         if(item !== chat) {
@@ -466,7 +585,33 @@ header {
           item.classList.add("selected-chat");
         }
       });
-      this.classList.add("chat-selectable");
+
+      fetch('/api/get_chat_info', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id: id
+        })
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      }).then(data => {
+        const chatContainer = document.getElementById("chat");
+        chatContainer.innerHTML = ""; 
+        data.messages.forEach(message => {
+          const messageDiv = document.createElement("div");
+          messageDiv.className = "message " + (message.role === "user" ? "user" : "assistant");
+          messageDiv.textContent = message.content;
+          chatContainer.appendChild(messageDiv);
+        });
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+      }).catch(error => {
+        console.error('There was a problem with the fetch operation:', error);
+      });
     }
 
     function getChatsHistory()
@@ -489,6 +634,13 @@ header {
             chats.forEach(chat => {
           addNewChat(chat.chat_name, chat.id, false);
             });
+            const chatItems = document.querySelectorAll(".chat-item");
+            if(chatItems.length > 1) {
+              const firstChat = chatItems[1];
+              selectChat(firstChat, chats[0].id);
+              console.log("Selected chat ID:", chats[0].id);
+              console.log("Selected chat name:", firstChat.textContent);
+            }
       }).catch(error => {
         console.error('There was a problem with the fetch operation:', error);
       });

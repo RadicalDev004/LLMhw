@@ -30,12 +30,17 @@ class Chats(Base):
 
     @staticmethod
     def get_chats_by_username(username):
-        """Retrieve a log entry by its ID."""
+        """Retrieve chats by their username."""
         session = SessionLocal()
         try:
             chats = session.query(Chats).filter(Chats.username == username).order_by(Chats.timestamp.desc()).limit(10).all()
             return chats or []
         finally:
             session.close()
+
+    @staticmethod
+    def get_chat_by_id(session, id):
+        """Retrieve a chat entry by its ID."""
+        return session.query(Chats).filter(Chats.id == id).first()
     
     
