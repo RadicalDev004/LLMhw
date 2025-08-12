@@ -167,6 +167,55 @@ header {
   color: #e2e2e2;
 }
 
+.audio-player {
+  background-color: #2a2b32;
+  border: 1px solid #3c3d43;
+  border-radius: 16px;
+  padding: 0.8rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: 400px;
+  margin-top: 0.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.audio-player button {
+  background-color: #10a37f;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  color: white;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.audio-player button:hover {
+  background-color: #0e8a6c;
+}
+
+.audio-player .progress-container {
+  flex: 1;
+  height: 5px;
+  background-color: #40414f;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.audio-player .progress {
+  background-color: #10a37f;
+  height: 100%;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
 /* Input Area */
 .input-area {
   display: flex;
@@ -387,6 +436,15 @@ header {
 
     <div class="chat-container" id="chat">
       <!-- <div class="message assistant">Hello! How can I help you today?</div> -->
+       <div class="audio-player">
+  <button onclick="toggleAudioPlayback(this)">
+    ▶️
+  </button>
+  <div class="progress-container" onclick="seekAudio(event, this)">
+    <div class="progress"></div>
+  </div>
+  <audio src="data:audio/wav;base64,[BASE64_AUDIO]" preload="auto"></audio>
+</div>
     </div>
 
     <div class="input-area">
@@ -459,7 +517,7 @@ header {
       }).then(data => {
         console.log('Message sent successfully:', data);
         
-        assistantMessage.textContent = data.response.replace(/\[image\].*?\[\/image\]/, "").trim() || "No response from server.";
+        assistantMessage.textContent = data.response.replace(/\[image\].*?\[\/image\]/, "").replace(/\[audio\].*?\[\/audio\]/, "").trim() || "No response from server.";
         chat.appendChild(assistantMessage);
 
         if (data.response && data.response.includes("[image]")) {
@@ -467,16 +525,15 @@ header {
           const imgEnd = data.response.indexOf("[/image]");
           const imgSrc = data.response.substring(imgStart, imgEnd);          
 
-          const imageBubble = document.createElement("div");
-          imageBubble.className = "chat-image-bubble";
-          const imageElement = document.createElement("img");
-          imageElement.src = "data:image/png;base64," + imgSrc;
-          imageElement.style.maxWidth = "100%";
-          imageElement.style.borderRadius = "12px";
+          chat.appendChild(createImageBubble(imgSrc));
+        }  
+        if (data.response && data.response.includes("[audio]")) {
+          const audioStart = data.response.indexOf("[audio]") + 7;
+          const audioEnd = data.response.indexOf("[/audio]");
+          const audioSrc = data.response.substring(audioStart, audioEnd);          
 
-          imageBubble.appendChild(imageElement);
-          chat.appendChild(imageBubble);
-        }               
+          chat.appendChild(createAudioPlayer(audioSrc));
+        }                 
         chat.scrollTop = chat.scrollHeight;
 
       }).catch(error => {
@@ -652,7 +709,7 @@ header {
           const messageDiv = document.createElement("div");
           messageDiv.className = "message " + (message.role === "user" ? "user" : "assistant");
           console.log("Message content:", message.content);
-          messageDiv.textContent = message.content.replace(/\[image\].*?\[\/image\]/, "").trim();
+          messageDiv.textContent = message.content.replace(/\[image\].*?\[\/image\]/, "").replace(/\[audio\].*?\[\/audio\]/, "").trim();
           chatContainer.appendChild(messageDiv);
 
           if (message.content && message.content.includes("[image]")) {
@@ -660,16 +717,18 @@ header {
           const imgEnd = message.content.indexOf("[/image]");
           const imgSrc = message.content.substring(imgStart, imgEnd);    
 
-          const imageBubble = document.createElement("div")
-          imageBubble.className = "chat-image-bubble";
-          const imageElement = document.createElement("img");
-          imageElement.src = "data:image/png;base64," + imgSrc;
-          imageElement.style.maxWidth = "100%";
-          imageElement.style.borderRadius = "12px";
+          
+          chatContainer.appendChild(createImageBubble(imgSrc));         
+          } 
 
-          imageBubble.appendChild(imageElement);
-          chatContainer.appendChild(imageBubble);
-        } 
+          if (message.content && message.content.includes("[audio]")) {
+          const audioStart = message.content.indexOf("[audio]") + 7;
+          const audioEnd = message.content.indexOf("[/audio]");
+          const audioSrc = message.content.substring(audioStart, audioEnd);    
+
+          
+          chatContainer.appendChild(createAudioPlayer(audioSrc));         
+          } 
         });
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }).catch(error => {
@@ -708,6 +767,80 @@ header {
         console.error('There was a problem with the fetch operation:', error);
       });
     }
+
+    function toggleAudioPlayback(button) {
+  const player = button.closest(".audio-player");
+  const audio = player.querySelector("audio");
+  const progress = player.querySelector(".progress");
+
+  if (audio.paused) {
+    audio.play();
+    button.textContent = "⏸️";
+  } else {
+    audio.pause();
+    button.textContent = "▶️";
+  }
+
+  audio.ontimeupdate = () => {
+    const percentage = (audio.currentTime / audio.duration) * 100;
+    progress.style.width = percentage + "%";
+  };
+
+  audio.onended = () => {
+    button.textContent = "▶️";
+    progress.style.width = "0%";
+  };
+}
+
+function seekAudio(event, container) {
+  const audio = container.closest(".audio-player").querySelector("audio");
+  const rect = container.getBoundingClientRect();
+  const offsetX = event.clientX - rect.left;
+  const percentage = offsetX / rect.width;
+  audio.currentTime = percentage * audio.duration;
+}
+
+function createAudioPlayer(base64Audio) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "audio-player";
+
+  const button = document.createElement("button");
+  button.textContent = "▶️";
+  button.onclick = function () {
+    toggleAudioPlayback(button);
+  };
+
+  const progressContainer = document.createElement("div");
+  progressContainer.className = "progress-container";
+  progressContainer.onclick = function (e) {
+    seekAudio(e, progressContainer);
+  };
+
+  const progress = document.createElement("div");
+  progress.className = "progress";
+  progressContainer.appendChild(progress);
+
+  const audio = document.createElement("audio");
+  audio.src = "data:audio/wav;base64," + base64Audio;
+  audio.preload = "auto";
+
+  wrapper.appendChild(button);
+  wrapper.appendChild(progressContainer);
+  wrapper.appendChild(audio);
+
+  return wrapper;
+}
+
+function createImageBubble(base64Image) {
+const imageBubble = document.createElement("div")
+imageBubble.className = "chat-image-bubble";
+const imageElement = document.createElement("img");
+imageElement.src = "data:image/png;base64," + base64Image;
+imageElement.style.maxWidth = "100%";
+imageElement.style.borderRadius = "12px";
+imageBubble.appendChild(imageElement);
+return imageBubble;
+}
   </script>
 
 </body>

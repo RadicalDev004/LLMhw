@@ -10,6 +10,7 @@ import json
 from datetime import datetime, timezone
 import traceback
 import os
+import base64
 from openai import OpenAI
 from app.rag import create_vectorstore, retriever, initialize_vectorstore
 
@@ -207,11 +208,13 @@ def add_message():
 
         else:
             raise Exception("No content in the response message.")  
+        
+        base_assistant_message = assistant_message
 
         if data.image and  "Nu am suficiente informatii pentru a raspunde la aceasta intrebare." not in data.content:
             response = client.images.generate(
                 model="dall-e-3",
-                prompt=assistant_message,
+                prompt=base_assistant_message,
                 n=1,
                 size="1024x1024",
                 quality="standard",
@@ -219,6 +222,16 @@ def add_message():
             )
             base64_image = response.data[0].b64_json
             assistant_message += f"\n[image]{base64_image}[/image]"
+
+        if data.sound and  "Nu am suficiente informatii pentru a raspunde la aceasta intrebare." not in data.content:
+            audio_response = client.audio.speech.create(
+                model="tts-1",
+                voice="shimmer",
+                input=base_assistant_message
+            )
+            audio_bytes = audio_response.read()
+            base64_audio = base64.b64encode(audio_bytes).decode("utf-8")
+            assistant_message += f"\n[audio]{base64_audio}[/audio]"
 
         messages.append({
             "role": "assistant",
