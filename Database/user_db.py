@@ -47,7 +47,7 @@ class User(Base):
             session.close()
 
     @staticmethod
-    def get_user_by_email(self, email):
+    def get_user_by_email(email):
         """Retrieve a user by their email."""
         session = SessionLocal()
         try:

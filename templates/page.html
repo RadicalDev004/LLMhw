@@ -132,6 +132,29 @@ header {
   font-size: 0.95rem;
 }
 
+.chat-image-bubble {
+  display: inline-block;
+  background: #3c3d43;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+  border: 1px solid #3c3d43;
+  padding: 10px;
+  margin: 0.5rem 0;
+  align-self: flex-start;
+}
+
+.chat-image-bubble img {
+  display: block;
+  max-width: 300px;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: 10px;
+  object-fit: contain;
+  margin: 0 auto;
+}
+
+
 .user {
   align-self: flex-end;
   background: #0e8a6c;
@@ -423,7 +446,9 @@ header {
         },
         body: JSON.stringify({
           id: currentChatId,
-          content: text
+          content: text,
+          image: document.getElementById("togglePicture").checked,
+          sound: document.getElementById("toggleAudio").checked
         })
       }).then(response => {
         if (!response.ok) {         
@@ -433,11 +458,25 @@ header {
         return response.json();
       }).then(data => {
         console.log('Message sent successfully:', data);
-
-        assistantMessage.textContent = data.response || "No response from server.";
+        
+        assistantMessage.textContent = data.response.replace(/\[image\].*?\[\/image\]/, "").trim() || "No response from server.";
         chat.appendChild(assistantMessage);
 
-        
+        if (data.response && data.response.includes("[image]")) {
+          const imgStart = data.response.indexOf("[image]") + 7;
+          const imgEnd = data.response.indexOf("[/image]");
+          const imgSrc = data.response.substring(imgStart, imgEnd);          
+
+          const imageBubble = document.createElement("div");
+          imageBubble.className = "chat-image-bubble";
+          const imageElement = document.createElement("img");
+          imageElement.src = "data:image/png;base64," + imgSrc;
+          imageElement.style.maxWidth = "100%";
+          imageElement.style.borderRadius = "12px";
+
+          imageBubble.appendChild(imageElement);
+          chat.appendChild(imageBubble);
+        }               
         chat.scrollTop = chat.scrollHeight;
 
       }).catch(error => {
@@ -580,6 +619,8 @@ header {
 
     function selectChat(chat, id){
       currentChatId = id;
+      const chatContainer = document.getElementById("chat");
+      chatContainer.innerHTML = ""; 
       console.log("Selected chat ID:", currentChatId);
       const chatItems = document.querySelectorAll(".chat-item");
       chatItems.forEach(item => {
@@ -605,13 +646,30 @@ header {
         }
         return response.json();
       }).then(data => {
-        const chatContainer = document.getElementById("chat");
+        
         chatContainer.innerHTML = ""; 
         data.messages.forEach(message => {
           const messageDiv = document.createElement("div");
           messageDiv.className = "message " + (message.role === "user" ? "user" : "assistant");
-          messageDiv.textContent = message.content;
+          console.log("Message content:", message.content);
+          messageDiv.textContent = message.content.replace(/\[image\].*?\[\/image\]/, "").trim();
           chatContainer.appendChild(messageDiv);
+
+          if (message.content && message.content.includes("[image]")) {
+          const imgStart = message.content.indexOf("[image]") + 7;
+          const imgEnd = message.content.indexOf("[/image]");
+          const imgSrc = message.content.substring(imgStart, imgEnd);    
+
+          const imageBubble = document.createElement("div")
+          imageBubble.className = "chat-image-bubble";
+          const imageElement = document.createElement("img");
+          imageElement.src = "data:image/png;base64," + imgSrc;
+          imageElement.style.maxWidth = "100%";
+          imageElement.style.borderRadius = "12px";
+
+          imageBubble.appendChild(imageElement);
+          chatContainer.appendChild(imageBubble);
+        } 
         });
         chatContainer.scrollTop = chatContainer.scrollHeight;
       }).catch(error => {

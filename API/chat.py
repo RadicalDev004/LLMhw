@@ -14,6 +14,26 @@ from openai import OpenAI
 from app.rag import create_vectorstore, retriever, initialize_vectorstore
 
 chat = Blueprint('add_chat', __name__)
+
+tools = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_summary_by_title",
+            "description": "Returns a summary of the book given its title",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "The title of the book, e.g., '1984'"
+                    }
+                },
+                "required": ["title"]
+            }
+        }
+    }
+]
 #openai.api_key = os.getenv("OPENAI_API_KEY", "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") 
 
 retriever = initialize_vectorstore()
@@ -157,7 +177,7 @@ def add_message():
             "content": data.content
         })
 
-        print(request_messages)
+        #print(request_messages)
 
         chat.content = json.dumps(messages, ensure_ascii=False)
         session.commit()
@@ -167,17 +187,45 @@ def add_message():
             model="gpt-3.5-turbo",
             messages=request_messages,
             max_tokens=1000,
-            temperature=0.7
+            temperature=0.7,
+            tools=tools,
+            tool_choice="auto"
         )
 
-        assistant_message = response.choices[0].message.content
+        message = response.choices[0].message
+        assistant_message = ""
+
+        if hasattr(message, "tool_calls") and message.tool_calls:
+            tool_call = message.tool_calls[0]
+            function_name = tool_call.function.name
+            arguments = json.loads(tool_call.function.arguments)
+
+            if function_name == "get_summary_by_title":
+                assistant_message = arguments["title"] + '\n' + get_summary_by_title(**arguments)
+        elif message.content:
+            assistant_message = response.choices[0].message.content  
+
+        else:
+            raise Exception("No content in the response message.")  
+
+        if data.image and  "Nu am suficiente informatii pentru a raspunde la aceasta intrebare." not in data.content:
+            response = client.images.generate(
+                model="dall-e-3",
+                prompt=assistant_message,
+                n=1,
+                size="1024x1024",
+                quality="standard",
+                response_format="b64_json"
+            )
+            base64_image = response.data[0].b64_json
+            assistant_message += f"\n[image]{base64_image}[/image]"
 
         messages.append({
             "role": "assistant",
             "content": assistant_message
         })
 
-        print(messages)
+        #print(messages)
 
         chat.content = json.dumps(messages, ensure_ascii=False)
         session.commit()
@@ -192,3 +240,14 @@ def add_message():
 
     finally:
         session.close()
+
+def get_summary_by_title(title):
+    try:
+        with open("book_summaries.txt", "r", encoding="utf-8") as file:
+            summaries = file.readlines()
+        for i in range(len(summaries)):
+            if title in summaries[i].strip():
+                return summaries[i + 1].strip() if i + 1 < len(summaries) else "No summary available."
+        return "No summary found for that title."
+    except FileNotFoundError:
+        return "Summary file not found."

@@ -48,6 +48,7 @@ def create_vectorstore(query, retriever):
 
     prompt = f"""
     Folosind contextul de mai jos, răspunde conversațional la întrebarea utilizatorului.
+    Daca raspunsul pe care vrei sa il dai nu se afla in cadrul contextului, raspunde cu "Nu am suficiente informatii pentru a raspunde la aceasta intrebare.".
 
     Context:
     {context}
