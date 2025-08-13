@@ -656,6 +656,7 @@ header{
 
   <script>
     let micStatus = 0;
+    let waitingForMic = false;
     let mediaRecorder = null;
     let audioChunks = [];
     let micStream = null;
@@ -1030,6 +1031,7 @@ return imageBubble;
 }
 
 function stopMicrophone() {
+  if(waitingForMic) return;
   if (micStatus === 0) return;
 
   mediaRecorder?.stop()
@@ -1037,6 +1039,7 @@ function stopMicrophone() {
   micStatus = 0;
 }
 async function toggleMicrophone() {
+  if(waitingForMic) return;
   try {
     if (micStatus === 0) {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1069,7 +1072,7 @@ async function toggleMicrophone() {
     document.getElementById("micStatus").textContent = "Processing audio...";
     document
     micStatus = 0;
-
+    waitingForMic = true;
 
     fetch('/api/audio_to_text', {
       method: 'POST',
@@ -1083,16 +1086,19 @@ async function toggleMicrophone() {
       }
       return response.json();
     }).then(data => {
+      waitingForMic = false;
       console.log('Message sent successfully:', data);
       document.getElementById('userInput').value = data.text;
       document.getElementById("micOverlay").classList.remove("active");
     }).catch(error => {
+      waitingForMic = false;
       console.error('There was a problem with the fetch operation:', error);
       document.getElementById('userInput').value = 'Error';
       document.getElementById("micOverlay").classList.remove("active");
     });
 
   } catch (err) {
+    waitingForMic = false;
     console.error("Mic error:", err);
     document.getElementById('userInput').value = 'Error';
     document.getElementById("micOverlay").classList.remove("active");
