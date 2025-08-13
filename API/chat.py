@@ -4,17 +4,25 @@ from Database.user_db import User
 from records.addchat import AddChat
 from records.getchat import GetChat
 from records.addmessage import AddMsg
+from records.getaudio import GetAudio
 from records.getchatinfo import GetChatInfo
 from pydantic import ValidationError
-import json
+import re, json, codecs
 from datetime import datetime, timezone
 import traceback
-import os
+import os, io, base64, tempfile
 import base64
+import unicodedata
 from openai import OpenAI
 from app.rag import create_vectorstore, retriever, initialize_vectorstore
+BLOCK = "nu am suficiente informatii pentru a raspunde la aceasta intrebare"
 
+OPENAI_KEY = os.getenv("OPENAI_API_KEY")
+_ue_re = re.compile(r'\\u[0-9a-fA-F]{4}')
 chat = Blueprint('add_chat', __name__)
+MEDIA_TAG_RE = re.compile(r"\[(image|audio)\](.*?)\[/\1\]", re.IGNORECASE | re.DOTALL)
+client = OpenAI(api_key = OPENAI_KEY)
+
 
 tools = [
     {
@@ -35,8 +43,6 @@ tools = [
         }
     }
 ]
-#openai.api_key = os.getenv("OPENAI_API_KEY", "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") 
-
 retriever = initialize_vectorstore()
 
 @chat.route('/api/add_chat', methods=['POST'])
@@ -150,14 +156,14 @@ def add_message():
         data = AddMsg.parse_obj(request.get_json())
     except ValidationError as e:
         return jsonify({"error": e.errors()}), 400
+    
+    
 
     session = SessionLocal()
 
     try:
         print(data)
         chat = Chats.get_chat_by_id(session, data.id)
-        #print(data.id)
-        print(chat)
         if not chat:
             return jsonify({"error": "Chat not found"}), 404
 
@@ -166,9 +172,25 @@ def add_message():
         except json.JSONDecodeError:
             messages = []
 
+        resp = client.moderations.create(
+            model="omni-moderation-latest",
+            input=data.content
+        )
+        r = resp.results[0]
+        print(resp.model_dump_json(indent=2))
+        if getattr(r, "flagged", True):            
+            return jsonify({"response": "Message flagged as inappropriate"}), 200
+
         prompt = create_vectorstore(data.content, retriever)
         print(prompt)
+
         request_messages = []
+        clean_messages = sanitize_history(messages, keep_placeholders=False)
+        clean_messages.append({
+            "role": "system",
+            "content": prompt
+        })
+
         request_messages.append({
             "role": "user",
             "content": prompt
@@ -178,15 +200,17 @@ def add_message():
             "content": data.content
         })
 
+        
+        print(clean_messages)
+
         #print(request_messages)
 
         chat.content = json.dumps(messages, ensure_ascii=False)
-        session.commit()
-        client = OpenAI(api_key="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")
+        session.commit()        
 
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=request_messages,
+            model="gpt-4o-mini",
+            messages=clean_messages,
             max_tokens=1000,
             temperature=0.7,
             tools=tools,
@@ -194,7 +218,12 @@ def add_message():
         )
 
         message = response.choices[0].message
+        print(json.dumps(message.model_dump(), indent=2))
         assistant_message = ""
+
+
+        if message.content:
+                assistant_message += response.choices[0].message.content   
 
         if hasattr(message, "tool_calls") and message.tool_calls:
             tool_call = message.tool_calls[0]
@@ -202,16 +231,14 @@ def add_message():
             arguments = json.loads(tool_call.function.arguments)
 
             if function_name == "get_summary_by_title":
-                assistant_message = arguments["title"] + '\n' + get_summary_by_title(**arguments)
-        elif message.content:
-            assistant_message = response.choices[0].message.content  
-
-        else:
-            raise Exception("No content in the response message.")  
+                assistant_message = arguments["title"] + '\n\n' + get_summary_by_title(**arguments) + '\n'
+          
+        
         
         base_assistant_message = assistant_message
+        msg_text = f"{getattr(message, 'content', '') or ''}"
 
-        if data.image and  "Nu am suficiente informatii pentru a raspunde la aceasta intrebare." not in data.content:
+        if data.image and  BLOCK not in norm(msg_text):
             response = client.images.generate(
                 model="dall-e-3",
                 prompt=base_assistant_message,
@@ -223,7 +250,7 @@ def add_message():
             base64_image = response.data[0].b64_json
             assistant_message += f"\n[image]{base64_image}[/image]"
 
-        if data.sound and  "Nu am suficiente informatii pentru a raspunde la aceasta intrebare." not in data.content:
+        if data.sound and  BLOCK not in norm(msg_text):
             audio_response = client.audio.speech.create(
                 model="tts-1",
                 voice="shimmer",
@@ -254,6 +281,38 @@ def add_message():
     finally:
         session.close()
 
+@chat.route('/api/audio_to_text', methods=['POST'])
+def audio_to_text():
+    try:
+        body = request.get_json(force=True)
+        b64 = body.get("audio", "")
+        if b64.startswith("data:"):
+            b64 = b64.split(",", 1)[1]
+
+        audio_bytes = base64.b64decode(b64)
+    except Exception as e:
+        return jsonify({"error": f"Invalid audio payload: {e}"}), 400
+    
+    tmp = tempfile.NamedTemporaryFile(suffix=".webm", delete=False)
+    try:
+        tmp.write(audio_bytes)
+        tmp.flush()
+        tmp.close()
+
+        with open(tmp.name, "rb") as f:
+            transcript = client.audio.transcriptions.create(
+                model="gpt-4o-mini-transcribe",
+                file=f,
+            )
+
+        text = getattr(transcript, "text", None) or transcript.get("text")
+        return jsonify({"text": text}), 200
+
+    finally:
+        try: os.remove(tmp.name)
+        except: pass
+
+
 def get_summary_by_title(title):
     try:
         with open("book_summaries.txt", "r", encoding="utf-8") as file:
@@ -264,3 +323,40 @@ def get_summary_by_title(title):
         return "No summary found for that title."
     except FileNotFoundError:
         return "Summary file not found."
+    
+def strip_media_tags(text: str, keep_placeholder: bool = False) -> str:
+    if not text:
+        return ""
+    def _repl(m):
+        return f"[{m.group(1).lower()} omitted]" if keep_placeholder else ""
+    cleaned = MEDIA_TAG_RE.sub(_repl, text)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned
+
+def sanitize_history(messages, keep_placeholders: bool = False):
+    cleaned = []
+    for m in messages or []:
+        role = m.get("role", "user")
+        content = strip_media_tags(m.get("content", ""), keep_placeholders)
+        if content: 
+            cleaned.append({"role": role, "content": content})
+    return cleaned
+
+def norm(s: str) -> str:
+    s = decode_unicode_escapes(s)
+    s = (s or "").casefold().strip()
+    s = unicodedata.normalize("NFKD", s)
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = " ".join(s.split())      
+    print(s)                      
+    return s
+
+def decode_unicode_escapes(s: str) -> str:
+    if not s:
+        return ""
+    if _ue_re.search(s):          
+        try:
+            return codecs.decode(s, "unicode_escape")
+        except Exception:
+            pass
+    return s

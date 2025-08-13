@@ -47,13 +47,17 @@ def create_vectorstore(query, retriever):
     context = "\n\n".join(unique_chunks)
 
     prompt = f"""
-    Folosind contextul de mai jos, răspunde conversațional la întrebarea utilizatorului.
-    Daca raspunsul pe care vrei sa il dai nu se afla in cadrul contextului, raspunde cu "Nu am suficiente informatii pentru a raspunde la aceasta intrebare.".
+    Folosind contextul de mai jos, răspunde conversațional (ca intr-o conversatie normala, cu interjectii si cuvinte de umplutura) la întrebarea utilizatorului.
+    Daca raspunsul pe care vrei sa il dai nu se afla in cadrul contextului sau al conversației, raspunde cu "Nu am suficiente informatii pentru a raspunde la aceasta intrebare.".
+    Daca intrebarea se refera la conversatie, poti sa ignori contextul.
+
+    REGULĂ STRICTĂ: când decizi să folosești o funcție (tool), include OBLIGATORIU în `content` o propoziție scurtă în română care reia parametrii extrași din Conversație sau din Context (ex.: titlurile detectate) și, dacă e posibil, o citare foarte scurtă (≤20 cuvinte) din Context.
+    Nu lăsa `content` gol. Nu inventa informații care nu există în Context.
 
     Context:
     {context}
 
-    Întrebare:
+    Conversație:
     {query}
 
     Răspuns:

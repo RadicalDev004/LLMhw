@@ -30,6 +30,7 @@ services:
     volumes:
       - .:/app
     environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
       DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
 
 volumes:

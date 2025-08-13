@@ -1,107 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login Centered</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
   <style>
-    * {
-      box-sizing: border-box;
+    /* ======================
+       Design tokens
+    ====================== */
+    :root{
+      --bg-900:#0b0d12;
+      --text-100:#f5f7fb;
+      --text-200:#e5eaf5;
+      --muted-500:#8892a7;
+      --border:#23314b;
+
+      --accent:#10a37f;
+      --accent-2:#6ee7ff;
+      --accent-3:#7c3aed;
+
+      --radius-lg:16px;
+      --radius-md:12px;
+
+      --shadow-1:0 10px 30px rgba(0,0,0,0.35);
+      --shadow-2:0 16px 50px rgba(0,0,0,0.45);
+
+      --glass:rgba(255,255,255,0.04);
+      --glass-strong:rgba(255,255,255,0.06);
+
+      --grad-accent:linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 45%, var(--accent-3) 100%);
+      --grad-surface:linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
     }
 
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', sans-serif;
-      background-color: #1e1f23;
-      color: #f0f0f0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+    /* ======================
+       Base
+    ====================== */
+    *{ box-sizing:border-box; }
+    html, body { height:100%; }
+    body{
+      margin:0;
+      font-family: Inter, "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+      color:var(--text-100);
+      background:
+        radial-gradient(1200px 800px at 10% -20%, rgba(124,58,237,0.12), transparent 55%),
+        radial-gradient(1000px 600px at 120% 10%, rgba(16,163,127,0.14), transparent 50%),
+        var(--bg-900);
+      min-height:100dvh;
+      display:grid;
+      place-items:center;
+      padding: clamp(16px, 3vw, 32px);
     }
 
-    .login-box {
-      background-color: #2a2b32;
-      border: 1px solid #3c3d43;
-      border-radius: 16px;
-      padding: 2rem;
-      width: 300px;
-      text-align: center;
-      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    /* ======================
+       Card
+    ====================== */
+    .login-box{
+      position:relative;
+      width:min(420px, 92vw);
+      padding:clamp(20px, 4vw, 28px);
+      border-radius:var(--radius-lg);
+      background:
+        radial-gradient(120% 180% at 10% 0%, rgba(110,231,255,0.06), rgba(110,231,255,0) 60%),
+        var(--grad-surface),
+        var(--glass);
+      border:1px solid rgba(110,231,255,0.18);
+      box-shadow: var(--shadow-2);
+      backdrop-filter: blur(10px);
     }
 
-    .login-box h2 {
-      margin-bottom: 1.5rem;
-      font-size: 1.2rem;
-      font-weight: 600;
-      color: #f0f0f0;
+    /* subtle glowing border effect */
+    .login-box::after{
+      content:"";
+      position:absolute; inset:-1px;
+      border-radius:inherit;
+      pointer-events:none;
+      background:linear-gradient(135deg, rgba(16,163,127,.25), rgba(110,231,255,.15), rgba(124,58,237,.18));
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor; mask-composite: exclude;
+      padding:1px;
     }
 
-    .login-box input {
-      width: 100%;
-      padding: 0.9rem;
-      border: none;
-      border-radius: 12px;
-      background-color: #40414f;
-      color: white;
-      font-size: 1rem;
-      margin-bottom: 1rem;
-      transition: background-color 0.2s ease;
+    .login-box h2{
+      margin:0 0 1rem 0;
+      font-size:clamp(1.15rem, 2.6vw, 1.35rem);
+      font-weight:700;
+      letter-spacing:.2px;
+      line-height:1.2;
+      color:var(--text-200);
+      background:linear-gradient(135deg,#fff 0%, #cfe9ff 60%, #bbeaff 100%);
+      -webkit-background-clip:text;
+      background-clip:text;
+      color:transparent;
     }
 
-    .login-box input:focus {
-      outline: none;
-      background-color: #4f505d;
+    .login-desc{
+      margin:.1rem 0 1.25rem 0;
+      font-size:.95rem;
+      color:var(--muted-500);
     }
 
-    .login-box button {
-      width: 100%;
-      padding: 0.75rem;
-      background-color: #10a37f;
-      border: none;
-      border-radius: 10px;
-      color: white;
-      font-weight: bold;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
+    /* ======================
+       Inputs
+    ====================== */
+    .login-input{
+      width:100%;
+      padding:1rem;
+      border-radius:var(--radius-md);
+      border:1px solid rgba(255,255,255,0.06);
+      color:#fff;
+      font-size:1rem;
+      background: linear-gradient(180deg, #1a2336, #141c2c);
+      outline:none;
+      transition: box-shadow .2s ease, border-color .2s ease, background .2s ease;
+    }
+    .login-input::placeholder{ color:var(--muted-500); }
+
+    .login-input:focus{
+      background: linear-gradient(180deg, #1d2740, #162033);
+      border-color: rgba(110,231,255,0.35);
+      box-shadow: 0 0 0 3px rgba(110,231,255,0.25);
     }
 
-    .login-box button:hover {
-      background-color: #0e8a6c;
+    /* ======================
+       Button
+    ====================== */
+    .login-btn{
+      width:100%;
+      padding:.9rem 1rem;
+      border-radius:10px;
+      border:1px solid rgba(110,231,255,0.35);
+      color:#fff;
+      font-weight:700;
+      font-size:1rem;
+      cursor:pointer;
+      background: var(--grad-accent);
+      box-shadow: 0 12px 28px rgba(16,163,127,.35), inset 0 1px 0 rgba(255,255,255,.18);
+      transition: filter .15s ease, transform .06s ease, box-shadow .2s ease;
+    }
+    .login-btn:hover{ filter:brightness(.96); }
+    .login-btn:active{ transform: translateY(1px); box-shadow: 0 8px 20px rgba(16,163,127,.28); }
+    .login-btn:focus-visible{ outline:none; box-shadow: 0 0 0 3px rgba(110,231,255,.35), 0 12px 28px rgba(16,163,127,.35); }
+
+    /* layout inside the card */
+    .stack{ display:grid; gap:14px; }
+
+    /* Footer/help */
+    .login-help{
+      margin-top:.35rem;
+      text-align:center;
+      font-size:.85rem;
+      color:var(--muted-500);
     }
 
-    @media (max-width: 400px) {
-      .login-box {
-        width: 90%;
-        padding: 1.5rem;
-      }
+    /* ======================
+       Small screens
+    ====================== */
+    @media (max-width:420px){
+      .login-box{ padding:18px; }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      *{ transition:none !important; }
     }
   </style>
 </head>
 <body>
-  <div class="login-box">
-    <h2>Enter Username</h2>
-    <input type="text" placeholder="Username" id="username">
-    <button onclick="submitUsername()">Submit</button>
+  <div class="login-box" role="dialog" aria-labelledby="title" aria-describedby="desc">
+    <h2 id="title">Welcome back</h2>
+    <p class="login-desc" id="desc">Enter your username to continue</p>
+
+    <div class="stack">
+      <input class="login-input" type="text" placeholder="Username" id="username" autocomplete="username" />
+      <button class="login-btn" id="submitBtn">Submit</button>
+      <div class="login-help">Your session cookie lasts 7 days.</div>
+    </div>
   </div>
 
   <script>
     function submitUsername() {
-      const username = document.getElementById("username").value.trim();
-      if (username === "") {
+      const inp = document.getElementById("username");
+      const username = inp.value.trim();
+      if (!username) {
+        inp.focus();
         alert("Please enter a username.");
-      } else {
-        const daysToExpire = 7;
-        const expiryDate = new Date();
-        expiryDate.setTime(expiryDate.getTime() + (daysToExpire * 24 * 60 * 60 * 1000));
-        const expires = "expires=" + expiryDate.toUTCString();
-      
-        document.cookie = "username=" + encodeURIComponent(username) + ";" + expires + ";path=/";
-        
-        location.reload();
+        return;
       }
+      const daysToExpire = 7;
+      const expiryDate = new Date();
+      expiryDate.setTime(expiryDate.getTime() + (daysToExpire * 24 * 60 * 60 * 1000));
+      document.cookie = "username=" + encodeURIComponent(username) + ";expires=" + expiryDate.toUTCString() + ";path=/";
+      location.reload();
     }
+
+    // Enter key + button click
+    document.getElementById("submitBtn").addEventListener("click", submitUsername);
+    document.getElementById("username").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") submitUsername();
+    });
   </script>
 </body>
 </html>
