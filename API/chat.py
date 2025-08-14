@@ -313,6 +313,7 @@ def audio_to_text():
         except: pass
 
 
+
 def get_summary_by_title(title):
     try:
         with open("book_summaries.txt", "r", encoding="utf-8") as file:

@@ -14,7 +14,17 @@ else
 fi
 
 PORT="${PORT:-5000}"
+WORKERS="${WORKERS:-4}"
 
 echo "[start.sh] Waiting for $DB_HOST:$DB_PORT..."
 echo "[start.sh] Starting app on port $PORT"
-./wait-for-it.sh "$DB_HOST" "$DB_PORT" -- gunicorn -w 4 -b 0.0.0.0:$PORT main:app
+./wait-for-it.sh "$DB_HOST" "$DB_PORT" -- \
+  gunicorn main:app \
+    -k eventlet \
+    -w "$WORKERS" \
+    -b "0.0.0.0:${PORT}" \
+    --timeout 0 \
+    --graceful-timeout 0 \
+    --log-level warning \
+    --access-logfile - \
+    --error-logfile -

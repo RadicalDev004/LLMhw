@@ -1,4 +1,6 @@
-Flask
+Flask 
+flask-sock 
+simple-websocket
 pydantic
 click
 flake8
@@ -7,6 +9,7 @@ psycopg2-binary
 bcrypt
 PyJWT
 gunicorn
+eventlet
 openai>=1.14.0
 langchain>=0.1.17
 langchain-community>=0.0.21

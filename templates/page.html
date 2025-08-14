@@ -632,7 +632,7 @@ header{
       </div>
 
       <input type="text" id="userInput" placeholder="Send a message..." />
-      <button class="mic-button" onclick="toggleMicrophone()">🎤</button>
+      <button class="mic-button" onclick="startMic()">🎤</button>
       <button onclick="sendMessage()">Send</button>
 
       <!-- Microphone -->
@@ -646,11 +646,13 @@ header{
       <div class="mic-ball"></div>
     </div>
     <div class="mic-status" id = "micStatus">Listening… speak now</div>
+    <br>
+    <div class = "mic-status" id = "spokenText"></div>
   </div>
 
   <div class="mic-actions">
-    <button class="mic-btn cancel"  onclick="stopMicrophone()">Cancel</button>
-    <button class="mic-btn submit"  onclick="toggleMicrophone()">Submit</button>
+    <button class="mic-btn cancel"  onclick="cancelMic()">Cancel</button>
+    <button class="mic-btn submit"  onclick="stopMic()">Submit</button>
   </div>
 </div>
 
@@ -1038,11 +1040,30 @@ function stopMicrophone() {
   document.getElementById("micOverlay").classList.remove("active");
   micStatus = 0;
 }
+function startMic()
+{
+  start().catch(e => { console.error(e); stop(); });
+  document.getElementById("micOverlay").classList.add("active");
+}
+function stopMic()
+{
+  stop();
+  document.getElementById('userInput').value += out.textContent;
+  document.getElementById("micOverlay").classList.remove("active");
+}
+
+function cancelMic()
+{
+  stop();
+  document.getElementById("micOverlay").classList.remove("active");
+}
 async function toggleMicrophone() {
   if(waitingForMic) return;
   try {
     if (micStatus === 0) {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      
 
       document.getElementById("micOverlay").classList.add("active");
       document.getElementById("micStatus").textContent = "Listening… speak now";
@@ -1149,6 +1170,99 @@ function cleanupMic() {
   mediaRecorder = null;
   audioChunks = [];
 }
+  let committed = "";
+  let partial = "";
+  let ws, ctx, node, src, stream;
+  let running = false;
+  const out = document.getElementById("spokenText");
+
+  function safeSend(buf){
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    if (ws.bufferedAmount > 1_000_000) return; // drop if backpressure
+    ws.send(buf);
+  }
+
+  async function start() {
+    if (running) return;
+    running = true;
+    out.textContent = "";
+    committed = "";
+    partial = "";
+
+    // 1) connect WS first
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/stt`);
+
+    await new Promise((res, rej) => {
+      ws.onopen = res;
+      ws.onerror = rej;
+    });
+
+    ws.onmessage = async (e) => { 
+      try {
+    const raw = e.data instanceof Blob ? await e.data.text() : e.data;
+    const msg = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    if (msg.type === "transcript.partial") {
+      partial += msg.text;
+    } else if (msg.type === "transcript.final") {
+      committed += msg.text + " ";
+      partial = "";
+    } else {
+      console.log("WS other:", msg);
+      return;
+    }
+
+      out.textContent = committed + partial;
+    } catch (err) {
+      console.warn("Non-JSON WS message:", e.data, err);
+    }
+    }
+
+    ws.onclose = (e) => {
+      console.log("WS closed",
+    "code:", e.code,        // e.g., 1000 = normal, 1006 = abnormal
+    "reason:", e.reason,
+    "clean:", e.wasClean
+  );
+      stop(); // stop producer immediately when socket closes
+    };
+    ws.onerror = (e) => {
+  console.log("WS error:", e?.message || e);
+};
+
+    // 2) audio graph + external worklet
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    await ctx.audioWorklet.addModule("/static/pcm16-writer.js");
+
+    node = new AudioWorkletNode(ctx, "pcm16-writer", { processorOptions: { frameSize: 1600 }});
+    node.port.onmessage = (ev) => safeSend(ev.data); // ArrayBuffer (binary)
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+    });
+    src = ctx.createMediaStreamSource(stream);
+    src.connect(node);
+    await ctx.resume();
+    console.log("Streaming…");
+  }
+
+  function stop() {
+    if (!running) return;
+    running = false;
+
+    
+
+    try { if (src && node) src.disconnect(node); } catch {}
+    try { if (node) node.port.onmessage = null; } catch {}
+    try { if (ctx && ctx.state !== "closed") ctx.close(); } catch {}
+    try { if (stream) stream.getTracks().forEach(t => t.stop()); } catch {}
+
+    src = node = stream = null; ctx = null;
+
+    try { if (ws && ws.readyState === WebSocket.OPEN) ws.close(1000, "client stop"); } catch {}
+    ws = null;
+  }
   </script>
 
 </body>
