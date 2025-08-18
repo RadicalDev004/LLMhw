@@ -19,15 +19,15 @@ Book Retrieval GPT is a conversational web application that uses OpenAI's GPT-4o
 
 ## Features
 
-- **RAG (Retrieval-Augmented Generation)**: Uses semantic search to find relevant book chunks <img src="imgs/llm3.png" alt="" width="500px"/> <img src="imgs/llm4.png" alt="" width="500px"/>
-- **Conversational Q&A** about books using GPT-4o and context from book summaries <img src="imgs/llm7.png" alt="" width="500px"/>
-- **Audio & Image Generation**: Optionally returns TTS audio and DALL-E images for responses <img src="imgs/llm2.png" alt="" width="500px"/>
-- **Speech-to-Text**: Real-time transcription using OpenAI Realtime API <img src="imgs/llm5.png" alt="" width="500px"/>
-- **Message filtration**: Innapropriate messages do not reach the LLM <img src="imgs/llm6.png" alt="" width="500px"/>
-- **Persistent Chat History**: Chats and messages stored in PostgreSQL <img src="imgs/llm1.png" alt="" width="500px"/>
-- **Tool incorporation**: LLM can use declared functions <img src="imgs/llm8.png" alt="" width="500px"/>
-- **User Authentication**: Simple username-based login 
-- **Responsive UI**: Modern, mobile-friendly design
+- **RAG (Retrieval-Augmented Generation)**: Uses semantic search to find relevant book chunks <img src="imgs/llm3.png" alt="" width="500px"/> <img src="imgs/llm4.png" alt="" width="500px"/> <br>
+- **Conversational Q&A** about books using GPT-4o and context from book summaries <img src="imgs/llm7.png" alt="" width="500px"/> <br>
+- **Audio & Image Generation**: Optionally returns TTS audio and DALL-E images for responses <img src="imgs/llm2.png" alt="" width="500px"/>  <br>
+- **Speech-to-Text**: Real-time transcription using OpenAI Realtime API <img src="imgs/llm5.png" alt="" width="500px"/> <br>
+- **Message filtration**: Innapropriate messages do not reach the LLM <img src="imgs/llm6.png" alt="" width="500px"/> <br>
+- **Persistent Chat History**: Chats and messages stored in PostgreSQL <img src="imgs/llm1.png" alt="" width="500px"/> <br>
+- **Tool incorporation**: LLM can use declared functions <img src="imgs/llm8.png" alt="" width="500px"/> <br>
+- **User Authentication**: Simple username-based login <img src="imgs/llm10.png" alt="" width="500px"/> <br>
+- **Responsive UI**: Modern, mobile-friendly design <img src="imgs/llm11.png" alt="" width="500px"/> <br>
 
 ## Project Structure
 
