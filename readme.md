@@ -19,8 +19,9 @@ Book Retrieval GPT is a conversational web application that uses OpenAI's GPT-4o
 
 ## Features
 
-- **Conversational Q&A** about books using GPT-4o and context from book summaries
 - **RAG (Retrieval-Augmented Generation)**: Uses semantic search to find relevant book chunks
+<img src="imgs/llm3.png" alt="" width="300px"/>
+- **Conversational Q&A** about books using GPT-4o and context from book summaries
 - **Audio & Image Generation**: Optionally returns TTS audio and DALL-E images for responses
 - **Speech-to-Text**: Real-time transcription using OpenAI Realtime API
 - **User Authentication**: Simple username-based login
