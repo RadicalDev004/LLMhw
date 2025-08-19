@@ -14,7 +14,7 @@ import os, io, base64, tempfile
 import base64
 import unicodedata
 from openai import OpenAI
-from app.rag import create_vectorstore, retriever, initialize_vectorstore
+from app.rag import create_vectorstore, initialize_vectorstore
 BLOCK = "nu am suficiente informatii pentru a raspunde la aceasta intrebare"
 
 OPENAI_KEY = os.getenv("OPENAI_API_KEY")
@@ -43,7 +43,14 @@ tools = [
         }
     }
 ]
-retriever = initialize_vectorstore()
+
+_retriever = None
+def get_retriever():
+    global _retriever
+    if _retriever is None:
+        from app.rag import initialize_vectorstore
+        _retriever = initialize_vectorstore()
+    return _retriever
 
 @chat.route('/api/add_chat', methods=['POST'])
 def add_chat():
@@ -181,7 +188,7 @@ def add_message():
         if getattr(r, "flagged", True):            
             return jsonify({"response": "Message flagged as inappropriate"}), 200
 
-        prompt = create_vectorstore(data.content, retriever)
+        prompt = create_vectorstore(data.content, get_retriever())
         print(prompt)
 
         request_messages = []
